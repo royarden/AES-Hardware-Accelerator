@@ -54,6 +54,11 @@ AES_Hardware_Accelerator/
 └── .gitignore
 ```
 
+## Documentation
+
+- [Architecture](DOCS/architecture.md) — RTL architecture, datapath organization, key preparation, and top-level interface.
+- [Verification](DOCS/verification.md) — Testbench coverage, known-answer tests, regression flow, and measured simulation latency.
+
 
 ## Architecture
 
@@ -387,7 +392,4 @@ hardware integration.
 
 ## License
 
-
-
-A project license has not yet been selected.
-
+This project is licensed under the [MIT License](LICENSE).
