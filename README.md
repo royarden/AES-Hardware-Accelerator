@@ -14,7 +14,7 @@ and decryption, together with a self-checking verification environment.
 
 
 
-\## Features
+## Features
 
 
 
@@ -42,31 +42,20 @@ and decryption, together with a self-checking verification environment.
 
 
 
-\## Repository Structure
-
-
+## Repository Structure
 
 ```text
-
-AES\_Hardware\_Accelerator/
-
+AES_Hardware_Accelerator/
 ├── RTL/        # Synthesizable Verilog RTL
-
 ├── TB/         # Self-checking testbenches
-
 ├── DOCS/       # Architecture and verification documentation
-
 ├── Scripts/    # Simulation and regression scripts
-
 ├── README.md
-
 └── .gitignore
-
 ```
 
 
-
-\## Architecture
+## Architecture
 
 
 
@@ -122,7 +111,7 @@ decryption key-expansion datapath is not required.
 
 
 
-\## Top-Level Interface
+## Top-Level Interface
 
 
 
@@ -160,7 +149,7 @@ module AES\_Accelerator(
 
 
 
-\### AES Modes
+### AES Modes
 
 
 
@@ -176,7 +165,7 @@ module AES\_Accelerator(
 
 
 
-\### Operation Selection
+### Operation Selection
 
 
 
@@ -200,7 +189,7 @@ For AES-128 and AES-192, the key is placed in the least-significant portion of
 
 
 
-\## Verification
+## Verification
 
 
 
@@ -240,20 +229,15 @@ warnings or errors.
 
 
 
-\### End-to-End Known-Answer Tests
+### End-to-End Known-Answer Tests
 
 
 
 Plaintext:
 
-
-
 ```text
-
 00112233445566778899aabbccddeeff
-
 ```
-
 
 
 | AES Mode | Expected Ciphertext |
@@ -272,7 +256,7 @@ Both encryption and reverse decryption are verified.
 
 
 
-\### Observed Simulation Latency
+### Observed Simulation Latency
 
 
 
@@ -298,7 +282,7 @@ timing or performance results.
 
 
 
-\## Running the Simulation
+## Running the Simulation
 
 
 
@@ -330,14 +314,9 @@ regression suite.
 
 A simulation transcript is generated as:
 
-
-
 ```text
-
 Scripts/regression.log
-
 ```
-
 
 
 Generated logs, simulator work libraries, and other build artifacts are excluded
@@ -358,7 +337,7 @@ do run\_aes\_accelerator.do
 
 
 
-\## FPGA Status
+## FPGA Status
 
 
 
@@ -392,7 +371,7 @@ testing have been completed.
 
 
 
-\## Project Status
+## Project Status
 
 
 
@@ -406,7 +385,7 @@ hardware integration.
 
 
 
-\## License
+## License
 
 
 
