@@ -1,46 +1,22 @@
-\# AES Hardware Accelerator
+# AES Hardware Accelerator
 
+A synthesizable Verilog hardware accelerator implementing AES-128, AES-192, and AES-256 encryption and decryption.
 
+The project provides a unified RTL interface for key preparation, encryption, and decryption, together with a self-checking verification environment and automated ModelSim regression flow.
 
-A synthesizable Verilog implementation of an AES hardware accelerator supporting
+## Highlights
 
-AES-128, AES-192, and AES-256 encryption and decryption.
-
-
-
-The design provides a unified top-level interface for key preparation, encryption,
-
-and decryption, together with a self-checking verification environment.
-
-
-
-## Features
-
-
-
-\- AES-128, AES-192, and AES-256 support
-
-\- Encryption and decryption
-
-\- Synthesizable Verilog RTL
-
-\- Unified top-level accelerator interface
-
-\- AES key expansion for 128-, 192-, and 256-bit keys
-
-\- Forward round keys reused in reverse order for decryption
-
-\- Self-checking testbenches
-
-\- Known-answer testing using standard AES test vectors
-
-\- Automated ModelSim regression script
-
-\- 13 RTL testbenches covering individual transformations through full
-
-&#x20; end-to-end accelerator operation
-
-
+- AES-128, AES-192, and AES-256 support
+- Encryption and decryption
+- Synthesizable Verilog RTL
+- Unified top-level accelerator interface
+- AES key expansion for 128-, 192-, and 256-bit keys
+- Forward round keys reused in reverse order for decryption
+- Self-checking verification environment
+- Standard AES known-answer tests
+- 13 Verilog testbenches
+- Automated ModelSim regression flow
+- Clean separation between reusable RTL, verification, documentation, and simulation scripts
 
 ## Repository Structure
 
@@ -49,7 +25,8 @@ AES_Hardware_Accelerator/
 ├── RTL/        # Synthesizable Verilog RTL
 ├── TB/         # Self-checking testbenches
 ├── DOCS/       # Architecture and verification documentation
-├── Scripts/    # Simulation and regression scripts
+├── Scripts/    # ModelSim simulation and regression scripts
+├── LICENSE
 ├── README.md
 └── .gitignore
 ```
@@ -57,186 +34,138 @@ AES_Hardware_Accelerator/
 ## Documentation
 
 - [Architecture](DOCS/architecture.md) — RTL architecture, datapath organization, key preparation, and top-level interface.
-- [Verification](DOCS/verification.md) — Testbench coverage, known-answer tests, regression flow, and measured simulation latency.
+- [Verification](DOCS/verification.md) — Testbench coverage, known-answer tests, regression flow, and observed simulation latency.
 
+## Architecture Overview
 
-## Architecture
+The accelerator is organized around three primary functional blocks:
 
+```text
+                    +----------------------+
+AES_key_in -------->|                      |
+AES_mode ---------->|   Key_Preparation    |---- Round Keys
+                    |                      |         |
+                    +----------------------+         |
+                                                     |
+                                                     v
+AES_data_in ---> +-----------------------+     +-----------------------+
+                 |                       |     |                       |
+                 | AES_Encryption_Module |     | AES_Decryption_Module |
+                 |                       |     |                       |
+                 +-----------------------+     +-----------------------+
+                           |                           |
+                           +-------------+-------------+
+                                         |
+                                         v
+                                  AES_data_out
+```
 
+### Key Preparation
 
-The accelerator is organized around three main blocks:
+`Key_Preparation` generates and stores the AES round keys using dedicated key-expansion logic for each supported key size:
 
+- `Key_Expansion_128_Enc`
+- `Key_Expansion_192_Enc`
+- `Key_Expansion_256_Enc`
 
+Forward-generated round keys are reused in reverse order during decryption, so a separate decryption key-expansion datapath is not required.
 
-\- `Key\_Preparation`
+### Encryption Datapath
 
-&#x20; - Generates and stores the AES round keys.
+`AES_Encryption_Module` implements the AES encryption transformations using:
 
-&#x20; - Supports AES-128, AES-192, and AES-256 key schedules.
+- SubBytes
+- ShiftRows
+- MixColumns
+- AddRoundKey
 
+The final AES round omits MixColumns as required by the AES algorithm.
 
+### Decryption Datapath
 
-\- `AES\_Encryption\_Module`
+`AES_Decryption_Module` implements the corresponding inverse transformations:
 
-&#x20; - Performs the AES encryption rounds using:
+- InvSubBytes
+- InvShiftRows
+- InvMixColumns
+- AddRoundKey
 
-&#x20;   - SubBytes
-
-&#x20;   - ShiftRows
-
-&#x20;   - MixColumns
-
-&#x20;   - AddRoundKey
-
-
-
-\- `AES\_Decryption\_Module`
-
-&#x20; - Performs the inverse AES transformations:
-
-&#x20;   - InvSubBytes
-
-&#x20;   - InvShiftRows
-
-&#x20;   - InvMixColumns
-
-&#x20;   - AddRoundKey
-
-
-
-The top-level `AES\_Accelerator` coordinates key preparation and the selected
-
-encryption or decryption operation.
-
-
-
-Decryption reuses the forward-generated round keys in reverse order; a separate
-
-decryption key-expansion datapath is not required.
-
-
+For additional design details, see [DOCS/architecture.md](DOCS/architecture.md).
 
 ## Top-Level Interface
 
-
-
-The reusable accelerator core is instantiated as:
-
-
-
 ```verilog
-
-module AES\_Accelerator(
-
-&#x20;   input              clk,
-
-&#x20;   input              rst\_n,
-
-&#x20;   input              start,
-
-&#x20;   input              operation,
-
-&#x20;   input      \[1:0]   AES\_mode,
-
-&#x20;   input      \[127:0] AES\_data\_in,
-
-&#x20;   input      \[255:0] AES\_key\_in,
-
-&#x20;   output reg \[127:0] AES\_data\_out,
-
-&#x20;   output reg         AES\_busy,
-
-&#x20;   output reg         AES\_done
-
+module AES_Accelerator(
+    input              clk,
+    input              rst_n,
+    input              start,
+    input              operation,
+    input      [1:0]   AES_mode,
+    input      [127:0] AES_data_in,
+    input      [255:0] AES_key_in,
+    output reg [127:0] AES_data_out,
+    output reg         AES_busy,
+    output reg         AES_done
 );
-
 ```
-
-
 
 ### AES Modes
 
-
-
-| Mode | `AES\_mode` | Key Width |
-
-|------|------------|-----------|
-
-| AES-128 | `2'd1` | 128 bits |
-
-| AES-192 | `2'd2` | 192 bits |
-
-| AES-256 | `2'd3` | 256 bits |
-
-
+| Mode | `AES_mode` | Key Width | AES Rounds |
+|------|------------|-----------|------------|
+| AES-128 | `2'd1` | 128 bits | 10 |
+| AES-192 | `2'd2` | 192 bits | 12 |
+| AES-256 | `2'd3` | 256 bits | 14 |
 
 ### Operation Selection
 
-
-
 | Operation | `operation` |
-
 |-----------|-------------|
+| Encryption | `1'b0` |
+| Decryption | `1'b1` |
 
-| Encrypt | `1'b0` |
+### Key Placement
 
-| Decrypt | `1'b1` |
+The key is supplied through the 256-bit `AES_key_in` input.
 
+| Mode | Active Key Bits |
+|------|-----------------|
+| AES-128 | `AES_key_in[127:0]` |
+| AES-192 | `AES_key_in[191:0]` |
+| AES-256 | `AES_key_in[255:0]` |
 
+For AES-128 and AES-192, unused most-significant key bits are set to zero.
 
-For AES-128 and AES-192, the key is placed in the least-significant portion of
+### Transaction Interface
 
-`AES\_key\_in`, with unused most-significant bits set to zero.
+A transaction is initiated by asserting `start`.
 
+`AES_busy` indicates that the accelerator is processing the current operation.
 
-
-`AES\_data\_out` is valid when `AES\_done` is asserted.
-
-
+`AES_done` indicates completion. `AES_data_out` is valid during the `AES_done` indication.
 
 ## Verification
 
+The project contains 13 self-checking Verilog testbenches covering the design from individual AES transformations through complete end-to-end accelerator operation.
 
+Verification includes:
 
-The project contains 13 self-checking testbenches covering:
+- Forward and inverse S-box
+- SubBytes and InvSubBytes
+- ShiftRows and InvShiftRows
+- MixColumns and InvMixColumns
+- AddRoundKey
+- AES-128 key expansion
+- AES-192 key expansion
+- AES-256 key expansion
+- Key preparation and round-key selection
+- Encryption datapath
+- Decryption datapath
+- Complete AES accelerator
 
-
-
-\- S-box and inverse S-box
-
-\- SubBytes / InvSubBytes
-
-\- ShiftRows / InvShiftRows
-
-\- MixColumns / InvMixColumns
-
-\- AddRoundKey
-
-\- AES-128 key expansion
-
-\- AES-192 key expansion
-
-\- AES-256 key expansion
-
-\- Key preparation
-
-\- Encryption datapath
-
-\- Decryption datapath
-
-\- Complete AES accelerator
-
-
-
-The current regression passes all 13 testbenches with no ModelSim compilation
-
-warnings or errors.
-
-
+The full RTL regression compiles and executes with zero ModelSim compilation errors and zero compilation warnings.
 
 ### End-to-End Known-Answer Tests
-
-
 
 Plaintext:
 
@@ -244,152 +173,103 @@ Plaintext:
 00112233445566778899aabbccddeeff
 ```
 
-
 | AES Mode | Expected Ciphertext |
-
 |----------|---------------------|
-
 | AES-128 | `69c4e0d86a7b0430d8cdb78070b4c55a` |
-
 | AES-192 | `dda97ca4864cdfe06eaf70a0ec0d7191` |
-
 | AES-256 | `8ea2b7ca516745bfeafc49904b496089` |
 
-
-
-Both encryption and reverse decryption are verified.
-
-
+Encryption is verified against the expected ciphertext for each supported key size. Decryption is also verified to recover the original plaintext.
 
 ### Observed Simulation Latency
 
-
-
-Measured at the `AES\_Accelerator` interface:
-
-
+End-to-end latency observed at the `AES_Accelerator` interface:
 
 | AES Mode | Encryption | Decryption |
-
 |----------|------------|------------|
-
 | AES-128 | 26 cycles | 26 cycles |
-
 | AES-192 | 26 cycles | 26 cycles |
-
 | AES-256 | 27 cycles | 27 cycles |
 
+These values represent RTL simulation latency. They are not FPGA timing or Fmax results.
 
-
-These values describe the current RTL simulation behavior and are not FPGA
-
-timing or performance results.
-
-
+Additional datapath and key-preparation verification results are documented in [DOCS/verification.md](DOCS/verification.md).
 
 ## Running the Simulation
 
+### Requirements
 
-
-The verification environment has been tested with ModelSim Intel FPGA Edition
-
-2020.1.
-
-
-
-From ModelSim:
-
-
-
-```tcl
-
-cd C:/path/to/AES\_Hardware\_Accelerator/Scripts
-
-do run\_regression.do
-
-```
-
-
-
-The script compiles the RTL and all testbenches and then executes the complete
-
-regression suite.
-
-
-
-A simulation transcript is generated as:
+The current verification flow has been tested with:
 
 ```text
-Scripts/regression.log
+ModelSim Intel FPGA Edition 2020.1
 ```
 
+### Full Regression
 
-Generated logs, simulator work libraries, and other build artifacts are excluded
-
-from version control.
-
-
-
-For a top-level-only simulation, use:
-
-
+From the ModelSim command prompt:
 
 ```tcl
-
-do run\_aes\_accelerator.do
-
+cd C:/path/to/AES_Hardware_Accelerator/Scripts
+do run_regression.do
 ```
 
+The regression script:
 
+1. Creates a clean ModelSim work library.
+2. Compiles all synthesizable RTL.
+3. Compiles all 13 self-checking testbenches.
+4. Executes each testbench sequentially.
+5. Writes the complete simulator transcript to `regression.log`.
+
+Generated simulator files, work libraries, and regression logs are excluded from version control.
+
+### Top-Level Accelerator Simulation
+
+To run only the end-to-end accelerator testbench:
+
+```tcl
+cd C:/path/to/AES_Hardware_Accelerator/Scripts
+do run_aes_accelerator.do
+```
 
 ## FPGA Status
 
+The reusable RTL core and simulation verification environment are complete.
 
+The intended FPGA target is the Terasic DE10-Nano development board based on an Intel Cyclone V device.
 
-The RTL and simulation environment are currently verified in ModelSim.
+The following implementation-stage results are intentionally not claimed yet:
 
+- FPGA resource utilization
+- Maximum clock frequency (Fmax)
+- Static timing analysis
+- Board-level hardware validation
 
-
-FPGA implementation work is planned for an Intel/Altera Cyclone V device using
-
-the DE10-Nano development board.
-
-
-
-The following results are intentionally not reported yet:
-
-
-
-\- FPGA resource utilization
-
-\- Maximum clock frequency (Fmax)
-
-\- Static timing analysis
-
-\- Board-level hardware validation
-
-
-
-These results will be added after synthesis, timing analysis, and hardware
-
-testing have been completed.
-
-
+These results will be added after the FPGA implementation and hardware-validation stage is completed.
 
 ## Project Status
 
+**Completed:**
 
+- AES-128/192/256 RTL implementation
+- Encryption and decryption datapaths
+- Key expansion and key preparation
+- Self-checking module-level verification
+- End-to-end known-answer testing
+- Automated 13-testbench regression
+- Architecture and verification documentation
 
-\*\*Current:\*\* RTL design and simulation verification complete.
+**Next:**
 
-
-
-\*\*Next:\*\* FPGA synthesis, timing analysis, resource analysis, and DE10-Nano
-
-hardware integration.
-
-
+- Intel Quartus FPGA synthesis
+- Resource-utilization analysis
+- Static timing and Fmax analysis
+- DE10-Nano integration
+- Physical hardware validation
 
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
+
+Copyright (c) 2026 Yarden Rosenblum
