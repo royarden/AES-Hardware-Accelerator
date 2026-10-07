@@ -1,338 +1,169 @@
-\# AES Hardware Accelerator Architecture
+# AES Hardware Accelerator Architecture
 
-
-
-\## Overview
-
-
+## Overview
 
 The AES Hardware Accelerator is a synthesizable Verilog implementation supporting
-
 AES-128, AES-192, and AES-256 encryption and decryption.
 
-
-
 The design is organized as a reusable hardware core with a unified top-level
-
-interface. The `AES\_Accelerator` module coordinates key preparation and the
-
+interface. The `AES_Accelerator` module coordinates key preparation and the
 encryption or decryption datapath.
 
-
-
-\## Top-Level Architecture
-
-
+## Top-Level Architecture
 
 The design consists of three primary functional blocks:
 
-
-
 ```text
-
-&#x20;                   +----------------------+
-
-AES\_key\_in -------->|                      |
-
-AES\_mode ---------->|   Key\_Preparation    |---- Round Keys
-
-&#x20;                   |                      |         |
-
-&#x20;                   +----------------------+         |
-
-&#x20;                                                    |
-
-&#x20;                                                    v
-
-AES\_data\_in ---> +-----------------------+     +-----------------------+
-
-&#x20;                |                       |     |                       |
-
-&#x20;                | AES\_Encryption\_Module |     | AES\_Decryption\_Module |
-
-&#x20;                |                       |     |                       |
-
-&#x20;                +-----------------------+     +-----------------------+
-
-&#x20;                          |                           |
-
-&#x20;                          +-------------+-------------+
-
-&#x20;                                        |
-
-&#x20;                                        v
-
-&#x20;                                 AES\_data\_out
-
+                    +----------------------+
+AES_key_in -------->|                      |
+AES_mode ---------->|   Key_Preparation    |---- Round Keys
+                    |                      |         |
+                    +----------------------+         |
+                                                     |
+                                                     v
+AES_data_in ---> +-----------------------+     +-----------------------+
+                 |                       |     |                       |
+                 | AES_Encryption_Module |     | AES_Decryption_Module |
+                 |                       |     |                       |
+                 +-----------------------+     +-----------------------+
+                           |                           |
+                           +-------------+-------------+
+                                         |
+                                         v
+                                  AES_data_out
 ```
 
-
-
 The top-level controller selects the appropriate datapath according to the
+`operation` input and coordinates the transaction using `start`, `AES_busy`,
+and `AES_done`.
 
-`operation` input and coordinates the transaction using `start`, `AES\_busy`,
+## Key Preparation
 
-and `AES\_done`.
-
-
-
-\## Key Preparation
-
-
-
-`Key\_Preparation` generates and stores the round keys required by the selected
-
+`Key_Preparation` generates and stores the round keys required by the selected
 AES mode.
-
-
 
 Three key-expansion modules are provided:
 
-
-
-\- `Key\_Expansion\_128\_Enc`
-
-\- `Key\_Expansion\_192\_Enc`
-
-\- `Key\_Expansion\_256\_Enc`
-
-
+- `Key_Expansion_128_Enc`
+- `Key_Expansion_192_Enc`
+- `Key_Expansion_256_Enc`
 
 The generated forward round keys are also used during decryption in reverse
-
 round order. Therefore, the architecture does not require a separate
-
 decryption key-expansion datapath.
-
-
 
 The supported number of AES rounds is:
 
-
-
 | Mode | Key Size | AES Rounds |
-
 |------|----------|------------|
-
 | AES-128 | 128 bits | 10 |
-
 | AES-192 | 192 bits | 12 |
-
 | AES-256 | 256 bits | 14 |
 
+## Encryption Datapath
 
-
-\## Encryption Datapath
-
-
-
-`AES\_Encryption\_Module` implements the AES encryption sequence using the
-
+`AES_Encryption_Module` implements the AES encryption sequence using the
 following transformations:
 
-
-
-1\. AddRoundKey
-
-2\. SubBytes
-
-3\. ShiftRows
-
-4\. MixColumns
-
-5\. AddRoundKey
-
-
+1. AddRoundKey
+2. SubBytes
+3. ShiftRows
+4. MixColumns
+5. AddRoundKey
 
 The final AES round omits the MixColumns transformation, as required by the
-
 AES algorithm.
-
-
 
 The encryption datapath uses the following RTL blocks:
 
+- `Sbox_Enc`
+- `Sub_Bytes_Enc`
+- `Shift_Rows_Enc`
+- `Mix_One_Column_Enc`
+- `Mix_Columns_Enc`
+- `Add_Round_Key_Enc`
 
+## Decryption Datapath
 
-\- `Sbox\_Enc`
-
-\- `Sub\_Bytes\_Enc`
-
-\- `Shift\_Rows\_Enc`
-
-\- `Mix\_One\_Column\_Enc`
-
-\- `Mix\_Columns\_Enc`
-
-\- `Add\_Round\_Key\_Enc`
-
-
-
-\## Decryption Datapath
-
-
-
-`AES\_Decryption\_Module` performs the inverse AES transformations.
-
-
+`AES_Decryption_Module` performs the inverse AES transformations.
 
 The decryption datapath uses:
 
-
-
-\- `Sbox\_Dec`
-
-\- `Sub\_Bytes\_Dec`
-
-\- `Shift\_Rows\_Dec`
-
-\- `Mix\_One\_Column\_Dec`
-
-\- `Mix\_Columns\_Dec`
-
-\- `Add\_Round\_Key\_Dec`
-
-
+- `Sbox_Dec`
+- `Sub_Bytes_Dec`
+- `Shift_Rows_Dec`
+- `Mix_One_Column_Dec`
+- `Mix_Columns_Dec`
+- `Add_Round_Key_Dec`
 
 Forward-generated round keys are selected in reverse order during decryption.
 
-
-
-\## AES State Representation
-
-
+## AES State Representation
 
 AES operates on a 128-bit state containing 16 bytes.
 
-
-
 The RTL uses the AES column-major state organization so that byte ordering is
-
 consistent across the SubBytes, ShiftRows, MixColumns, and AddRoundKey
-
 transformations.
 
-
-
-\## Top-Level Interface
-
-
+## Top-Level Interface
 
 ```verilog
-
-module AES\_Accelerator(
-
-&#x20;   input              clk,
-
-&#x20;   input              rst\_n,
-
-&#x20;   input              start,
-
-&#x20;   input              operation,
-
-&#x20;   input      \[1:0]   AES\_mode,
-
-&#x20;   input      \[127:0] AES\_data\_in,
-
-&#x20;   input      \[255:0] AES\_key\_in,
-
-&#x20;   output reg \[127:0] AES\_data\_out,
-
-&#x20;   output reg         AES\_busy,
-
-&#x20;   output reg         AES\_done
-
+module AES_Accelerator(
+    input              clk,
+    input              rst_n,
+    input              start,
+    input              operation,
+    input      [1:0]   AES_mode,
+    input      [127:0] AES_data_in,
+    input      [255:0] AES_key_in,
+    output reg [127:0] AES_data_out,
+    output reg         AES_busy,
+    output reg         AES_done
 );
-
 ```
 
+### Mode Encoding
 
-
-\### Mode Encoding
-
-
-
-| AES Mode | `AES\_mode` |
-
+| AES Mode | `AES_mode` |
 |----------|------------|
-
 | AES-128 | `2'd1` |
-
 | AES-192 | `2'd2` |
-
 | AES-256 | `2'd3` |
 
-
-
-\### Operation Encoding
-
-
+### Operation Encoding
 
 | Operation | `operation` |
-
 |-----------|-------------|
-
 | Encryption | `1'b0` |
-
 | Decryption | `1'b1` |
 
+### Key Placement
 
-
-\### Key Placement
-
-
-
-The key is supplied through the 256-bit `AES\_key\_in` interface:
-
-
+The key is supplied through the 256-bit `AES_key_in` interface:
 
 | Mode | Active Key Bits |
-
 |------|-----------------|
-
-| AES-128 | `AES\_key\_in\[127:0]` |
-
-| AES-192 | `AES\_key\_in\[191:0]` |
-
-| AES-256 | `AES\_key\_in\[255:0]` |
-
-
+| AES-128 | `AES_key_in[127:0]` |
+| AES-192 | `AES_key_in[191:0]` |
+| AES-256 | `AES_key_in[255:0]` |
 
 Unused most-significant bits are set to zero for AES-128 and AES-192.
 
-
-
-\## Transaction Interface
-
-
+## Transaction Interface
 
 A transaction is initiated using `start`.
 
+`AES_busy` indicates that the accelerator is processing the current operation.
 
+`AES_done` indicates completion. `AES_data_out` is valid during the
+`AES_done` indication.
 
-`AES\_busy` indicates that the accelerator is processing the current operation.
-
-
-
-`AES\_done` indicates completion. `AES\_data\_out` is valid during the
-
-`AES\_done` indication.
-
-
-
-\## Current Implementation Status
-
-
+## Current Implementation Status
 
 The RTL architecture and simulation behavior have been verified using
-
 self-checking ModelSim testbenches for AES-128, AES-192, and AES-256
-
 encryption and decryption.
 
-
-
 FPGA synthesis, timing analysis, resource utilization, and board-level
-
 validation are planned as a separate implementation stage.
-
